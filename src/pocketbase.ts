@@ -145,6 +145,11 @@ export function pocketbaseCollectionOptions<TItem extends object>(
     }
 
     const setupSubscription = async () => {
+      // Only subscribe to realtime updates in the browser
+      if (typeof window === 'undefined') {
+        return
+      }
+
       unsubscribe = await collection.subscribe('*', (event) => {
         if (!isInitialSyncComplete) {
           eventBuffer.push(event)
@@ -185,6 +190,7 @@ export function pocketbaseCollectionOptions<TItem extends object>(
       }
     }
 
+    // Start subscription and initial sync
     setupSubscription()
     initialSync()
 
