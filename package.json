@@ -1,0 +1,53 @@
+{
+  "name": "@gdenier/pocketbase-db-collection",
+  "version": "0.1.0",
+  "description": "PocketBase collection for TanStack DB",
+  "author": "Guillaume Denier",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gdenier/pocketbase-db-collection.git"
+  },
+  "homepage": "https://github.com/gdenier/pocketbase-db-collection#readme",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "src"
+  ],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "dev": "vite build --watch --mode development",
+    "build": "vite build",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@tanstack/db": "^0.5.11",
+    "@tanstack/store": "^0.8.0",
+    "pocketbase": "^0.21.5",
+    "@standard-schema/spec": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@vitest/coverage-istanbul": "^2.1.8",
+    "eslint": "^9.16.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3",
+    "vite-plugin-dts": "^4.3.0",
+    "vitest": "^2.1.8"
+  }
+}
