@@ -1,6 +1,6 @@
 {
   "name": "@gdenier/pocketbase-db-collection",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "PocketBase collection for TanStack DB",
   "author": "Guillaume Denier",
   "license": "MIT",
