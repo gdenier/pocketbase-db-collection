@@ -79,6 +79,8 @@ export function pocketbaseCollectionOptions<TItem extends object>(
   let isSubscribedFlag = false
 
   const idStore = new Store<Map<string, number>>(new Map())
+  // Map to track temporary IDs -> real IDs for reconciliation
+  const pendingIdMap = new Store<Map<string, string>>(new Map())
 
   const cleanupOldIds = () => {
     const now = Date.now()
@@ -128,14 +130,37 @@ export function pocketbaseCollectionOptions<TItem extends object>(
     let isInitialSyncComplete = false
 
     const processEvent = (event: RecordSubscription<any>) => {
-      const id = event.record.id
+      const realId = event.record.id
       const ids = idStore.state
-      ids.set(id, Date.now())
+      ids.set(realId, Date.now())
       idStore.setState(() => ids)
 
       begin()
       if (event.action === 'create') {
-        write({ type: 'insert', value: convert(event.record, parse) })
+        // Check if this real ID corresponds to a temporary ID that needs reconciliation
+        const pendingIds = pendingIdMap.state
+        let tempIdToDelete: string | null = null
+
+        // Find if any tempId maps to this realId
+        for (const [tempId, mappedRealId] of pendingIds.entries()) {
+          if (mappedRealId === realId) {
+            tempIdToDelete = tempId
+            break
+          }
+        }
+
+        if (tempIdToDelete) {
+          // This is a reconciliation: delete the temp record, insert with real ID
+          write({ type: 'delete', value: { id: tempIdToDelete } as any })
+          write({ type: 'insert', value: convert(event.record, parse) })
+
+          // Clean up the mapping
+          pendingIds.delete(tempIdToDelete)
+          pendingIdMap.setState(() => pendingIds)
+        } else {
+          // Normal insert from another source
+          write({ type: 'insert', value: convert(event.record, parse) })
+        }
       } else if (event.action === 'update') {
         write({ type: 'update', value: convert(event.record, parse) })
       } else if (event.action === 'delete') {
@@ -209,14 +234,27 @@ export function pocketbaseCollectionOptions<TItem extends object>(
       }
     }
 
-    const ids: string[] = []
+    const realIds: string[] = []
     for (const mutation of transaction.mutations) {
       const serialized = convertPartial(mutation.modified, serialize)
-      const record = await collection.create(serialized)
-      ids.push(record.id)
+      // Extract the temporary ID that TanStack DB used for optimistic update
+      const { id: tempId, created, updated, ...dataWithoutMeta } = serialized as any
+
+      // Send to PocketBase WITHOUT the ID - PocketBase will generate its own
+      const record = await collection.create(dataWithoutMeta)
+
+      // Store mapping: tempId -> realId for reconciliation
+      if (tempId && record.id !== tempId) {
+        const pendingIds = pendingIdMap.state
+        pendingIds.set(tempId, record.id)
+        pendingIdMap.setState(() => pendingIds)
+      }
+
+      realIds.push(record.id)
     }
 
-    await awaitIds(ids)
+    // Wait for the real IDs to appear via subscription
+    await awaitIds(realIds)
   }
 
   const onUpdate: CollectionConfig<TItem>['onUpdate'] = async ({ transaction }) => {
